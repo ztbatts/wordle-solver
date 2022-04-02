@@ -28,12 +28,42 @@ class BruteForceSolution:
         self.clues = []
         self.guesses = []
 
-    # def find_best_guesses(self):
-    #     for candidate_guess in self.word_list:
-    #         for hypothetical_answer in self.word_list:  # scan thru every other possible answer
-    #             if candidate_guess == hypothetical_answer:
-    #                 continue
-    #             # ...
+    def generate_clue(self, guess: str, answer: str) -> List[Color]:
+        clue = [Color.GRAY] * self.word_length
+
+        # We need to account for repeated letters... start from the back,
+        # so we can safely "pop" from ans w/out misalignment
+        for reverse_count, guess_letter in enumerate(reversed(guess)):
+            i = len(guess) - reverse_count - 1
+            if guess_letter is answer[i]:
+                clue[i] = Color.GREEN
+                answer = answer[:i] + answer[i + 1:]
+
+        for i, guess_letter in enumerate(guess):
+            if clue[i] is Color.GREEN:
+                continue
+            if guess_letter in answer:
+                clue[i] = Color.YELLOW
+                idx = answer.find(guess_letter)
+                answer = answer[:idx] + answer[idx + 1:]
+
+        return clue
+
+    def find_best_guess(self) -> str:
+        score_list = []
+        for candidate_guess in self.word_list:
+            score = 0
+            for hypothetical_answer in self.word_list:  # scan thru every other possible answer
+                if candidate_guess == hypothetical_answer:
+                    continue
+                hypothetical_clue = self.generate_clue(candidate_guess, hypothetical_answer)
+                new_solver = self
+                new_solver.add_guess(candidate_guess, hypothetical_clue)
+                number_of_fewer_words = len(new_solver.word_list) - len(self.word_list)
+                score = score + number_of_fewer_words
+            score_list.append(score)
+        best_candidate_idx = score_list.index(max(score_list))
+        return self.word_list[best_candidate_idx]
 
     def is_word_possible(self, word: str) -> bool:
         """ For example,
@@ -55,9 +85,8 @@ class BruteForceSolution:
         self.clues.append(clue)
         self.current_guess_number = self.current_guess_number + 1
         if self.current_guess_number > self.max_number_of_guesses:
-            print("YOU LOSE")
+            raise Exception("YOU LOSE")
 
-        # for letter, color, possible_letters in zip(guess, clue, self.possible_letters_for_each_position):
         for i in range(self.word_length):
             letter = guess[i]
             color = clue[i]
@@ -82,10 +111,8 @@ class BruteForceSolution:
 if __name__ == "__main__":
     solver = BruteForceSolution()
 
-    test_str = 'asdfjk'
-    new_test_str = re.sub('s', '', test_str)
-    print(test_str)
-    print(new_test_str)
+    test_clue = solver.generate_clue('green', 'guard')
+    test_clue1 = solver.generate_clue('eeegg', 'egret')
 
     guesses_and_clues = [
         ('weird', [Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY]),
@@ -96,5 +123,6 @@ if __name__ == "__main__":
 
     for guess, clue in guesses_and_clues:
         solver.add_guess(guess, clue)
-        print('number of words remaining:', len(solver.word_list))
-        print(solver.word_list[0:10])
+        print('guess = ', guess, ' | number of words remaining = ', len(solver.word_list),
+              ' e.g....', solver.word_list[0:10])
+        print('   next best guess is ... ', solver.find_best_guess())
